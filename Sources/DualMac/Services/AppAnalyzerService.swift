@@ -102,11 +102,10 @@ public enum AppAnalyzerService {
         // Always include note that Method B clones do not auto-update
         warnings.append(.noAutoUpdates())
         
-        // Determine recommended method
+        // Determine recommended method: Bundle duplication is required for a distinct Dock icon,
+        // distinct name, and independent Dock tile (including Electron and Chromium apps).
         let recommendedMethod: CloningMethod
-        if isElectron || isChromium {
-            recommendedMethod = .electronDataDir
-        } else if isAppleApp {
+        if isAppleApp {
             recommendedMethod = .multiInstance
         } else {
             recommendedMethod = .bundleDuplicate

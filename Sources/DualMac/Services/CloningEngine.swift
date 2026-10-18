@@ -163,8 +163,16 @@ public enum CloningEngine {
             let newDisplayName = "\(app.name) – \(name)"
             
             try await CommandRunner.shared.run("/usr/bin/plutil", arguments: ["-replace", "CFBundleIdentifier", "-string", newBundleId, infoPlist])
-            try await CommandRunner.shared.run("/usr/bin/plutil", arguments: ["-replace", "CFBundleName", "-string", newDisplayName, infoPlist])
             try await CommandRunner.shared.run("/usr/bin/plutil", arguments: ["-replace", "CFBundleDisplayName", "-string", newDisplayName, infoPlist])
+            
+            // For non-Electron apps, we also update CFBundleName.
+            // For Electron / Chromium apps, Electron dynamically locates its helper processes via CFBundleName
+            // ("<CFBundleName> Helper.app"). Keeping CFBundleName as the base name prevents Electron from failing
+            // with "[FATAL:electron_main_delegate_mac.mm:66] Unable to find helper app", while CFBundleDisplayName
+            // provides the full "App – Dual" name in Finder and the Dock.
+            if !app.isElectron && !app.isChromium {
+                try await CommandRunner.shared.run("/usr/bin/plutil", arguments: ["-replace", "CFBundleName", "-string", newDisplayName, infoPlist])
+            }
             
             // Badge app icon
             let analysis = AppAnalyzerService.analyze(appPath: app.path)
@@ -227,16 +235,17 @@ public enum CloningEngine {
     public static func launchProfile(_ profile: DualProfile) async throws {
         var args: [String] = ["-n"]
         
-        if profile.method == .bundleDuplicate, let clonePath = profile.cloneBundlePath, !profile.isElectron {
-            // Non-electron bundle duplicate
-            args.append(contentsOf: ["-a", clonePath])
-        } else if let profileDir = profile.profileDataDir, (profile.isElectron || profile.method == .electronDataDir) {
-            // Electron or Chromium: ALWAYS pass --user-data-dir
-            let targetApp = (profile.method == .bundleDuplicate && profile.cloneBundlePath != nil) ? profile.cloneBundlePath! : profile.originalAppPath
-            args.append(contentsOf: ["-a", targetApp, "--args", "--user-data-dir=\(profileDir)"])
+        let targetApp: String
+        if let clonePath = profile.cloneBundlePath, FileManager.default.fileExists(atPath: clonePath) {
+            targetApp = clonePath
         } else {
-            // Multi-instance fallback
-            args.append(contentsOf: ["-a", profile.originalAppPath])
+            targetApp = profile.originalAppPath
+        }
+        
+        args.append(contentsOf: ["-a", targetApp])
+        
+        if let profileDir = profile.profileDataDir, (profile.isElectron || profile.method == .electronDataDir) {
+            args.append(contentsOf: ["--args", "--user-data-dir=\(profileDir)"])
         }
         
         try await CommandRunner.shared.run("/usr/bin/open", arguments: args)

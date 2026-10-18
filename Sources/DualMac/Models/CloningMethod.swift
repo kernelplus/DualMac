@@ -1,18 +1,18 @@
 import Foundation
 
 public enum CloningMethod: String, Codable, CaseIterable, Identifiable, Sendable {
-    case electronDataDir = "electron_data_dir"
     case bundleDuplicate = "bundle_duplicate"
+    case electronDataDir = "electron_data_dir"
     case multiInstance = "multi_instance"
     
     public var id: String { rawValue }
     
     public var title: String {
         switch self {
+        case .bundleDuplicate:
+            return "Method B: App Bundle Duplicate (Recommended)"
         case .electronDataDir:
             return "Method A: Profile Data Isolation"
-        case .bundleDuplicate:
-            return "Method B: App Bundle Duplicate"
         case .multiInstance:
             return "Method C: Multi-Instance Fallback"
         }
@@ -20,10 +20,10 @@ public enum CloningMethod: String, Codable, CaseIterable, Identifiable, Sendable
     
     public var shortTitle: String {
         switch self {
-        case .electronDataDir:
-            return "Data Isolation (--user-data-dir)"
         case .bundleDuplicate:
-            return "Clone App Bundle"
+            return "Clone App Bundle (Distinct Dock Icon)"
+        case .electronDataDir:
+            return "Lightweight Data-Dir (Shared Icon)"
         case .multiInstance:
             return "Multi-Instance (open -n)"
         }
@@ -31,12 +31,12 @@ public enum CloningMethod: String, Codable, CaseIterable, Identifiable, Sendable
     
     public var description: String {
         switch self {
-        case .electronDataDir:
-            return "Recommended for Electron & Chromium apps. Isolates data into a separate profile folder with zero bundle copying (saves 300MB–1.5GB)."
         case .bundleDuplicate:
-            return "Duplicates the .app bundle to ~/Applications/DualMac, changes CFBundleIdentifier, removes DRM receipt, re-signs ad-hoc, and badges the icon."
+            return "Recommended. Creates an independent bundle in ~/Applications/DualMac with its own badged Dock icon, unique bundle ID, and isolated session."
+        case .electronDataDir:
+            return "Creates a lightweight launcher that shares the original app bundle. Note: macOS Dock groups this under the original app's icon without badge."
         case .multiInstance:
-            return "Launches a new instance using 'open -n -a' without duplicating files or passing custom arguments. Works only if app natively allows multiple sessions."
+            return "Launches a new instance using 'open -n -a'. Works only if app natively allows multiple sessions."
         }
     }
     

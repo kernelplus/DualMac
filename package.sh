@@ -67,6 +67,16 @@ pkgbuild --root "$PKG_STAGE" \
 rm -rf "$PKG_STAGE"
 
 echo "==> PKG successfully created: $PKG_PATH"
+
+echo "==> Step 4: Applying custom Finder icons to packages and app..."
+if [ ! -f "$SCRIPT_DIR/Sources/DualMac/Resources/apply_icon" ] && [ -f "$SCRIPT_DIR/Sources/DualMac/Resources/apply_icon.swift" ]; then
+    swiftc -parse-as-library -module-cache-path /tmp/swift-cache "$SCRIPT_DIR/Sources/DualMac/Resources/apply_icon.swift" -o "$SCRIPT_DIR/Sources/DualMac/Resources/apply_icon"
+fi
+
+if [ -f "$SCRIPT_DIR/Sources/DualMac/Resources/apply_icon" ] && [ -f "$SCRIPT_DIR/Resources/AppIcon.png" ]; then
+    "$SCRIPT_DIR/Sources/DualMac/Resources/apply_icon" "$SCRIPT_DIR/Resources/AppIcon.png" "$DMG_PATH" "$PKG_PATH" "$APP_PATH"
+fi
+
 echo ""
 echo "========================================================"
 echo " Packaging Complete!"

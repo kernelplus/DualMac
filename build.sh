@@ -81,4 +81,12 @@ if [ -f "/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServ
     /System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister -f "$APP_DIR" 2>/dev/null || true
 fi
 
+if [ ! -f "$SCRIPT_DIR/Sources/DualMac/Resources/apply_icon" ] && [ -f "$SCRIPT_DIR/Sources/DualMac/Resources/apply_icon.swift" ]; then
+    swiftc -parse-as-library -module-cache-path /tmp/swift-cache "$SCRIPT_DIR/Sources/DualMac/Resources/apply_icon.swift" -o "$SCRIPT_DIR/Sources/DualMac/Resources/apply_icon"
+fi
+
+if [ -f "$SCRIPT_DIR/Sources/DualMac/Resources/apply_icon" ] && [ -f "$SCRIPT_DIR/Resources/AppIcon.png" ]; then
+    "$SCRIPT_DIR/Sources/DualMac/Resources/apply_icon" "$SCRIPT_DIR/Resources/AppIcon.png" "$APP_DIR" 2>/dev/null || true
+fi
+
 echo "==> Build successful: $APP_DIR"

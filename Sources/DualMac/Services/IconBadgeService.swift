@@ -3,7 +3,27 @@ import AppKit
 
 public enum IconBadgeService {
     
-    /// Parses a hex color string like "#FF9500" into NSColor
+    private static var cachedDualBadge: NSImage? = {
+        // Try loading from Bundle Resources
+        if let resPath = Bundle.main.path(forResource: "DualBadge", ofType: "png"),
+           let img = NSImage(contentsOfFile: resPath) {
+            return img
+        }
+        // Try loading from local Resources directory
+        let localPaths = [
+            "Resources/DualBadge.png",
+            "Sources/DualMac/Resources/DualBadge.png",
+            ("/Users" as NSString).appendingPathComponent("\(NSUserName())/Documents/Dual App Mac/Resources/DualBadge.png")
+        ]
+        for p in localPaths {
+            if FileManager.default.fileExists(atPath: p), let img = NSImage(contentsOfFile: p) {
+                return img
+            }
+        }
+        return nil
+    }()
+    
+    /// Parses a hex color string like "#2563EB" into NSColor
     public static func color(fromHex hex: String) -> NSColor {
         var cleanHex = hex.trimmingCharacters(in: .whitespacesAndNewlines)
         if cleanHex.hasPrefix("#") {
@@ -34,8 +54,8 @@ public enum IconBadgeService {
                        fraction: 1.0)
         
         // 2. Draw badge in bottom right corner
-        let badgeDiameter = targetSize * 0.40
-        let margin = targetSize * 0.04
+        let badgeDiameter = targetSize * 0.42
+        let margin = targetSize * 0.02
         let badgeRect = NSRect(
             x: targetSize - badgeDiameter - margin,
             y: margin,
@@ -43,31 +63,48 @@ public enum IconBadgeService {
             height: badgeDiameter
         )
         
-        // Draw white border for high contrast
-        let borderPath: NSBezierPath
-        if badge.shape == "roundedRectangle" {
-            borderPath = NSBezierPath(roundedRect: badgeRect.insetBy(dx: -1.5, dy: -1.5), xRadius: badgeDiameter * 0.25, yRadius: badgeDiameter * 0.25)
-        } else {
-            borderPath = NSBezierPath(ovalIn: badgeRect.insetBy(dx: -1.5, dy: -1.5))
-        }
-        NSColor.white.withAlphaComponent(0.9).setStroke()
-        borderPath.lineWidth = targetSize > 64 ? 3.0 : 1.5
-        borderPath.stroke()
+        let ctx = NSGraphicsContext.current?.cgContext
         
-        // Draw badge background
-        let fillPath: NSBezierPath
-        if badge.shape == "roundedRectangle" {
-            fillPath = NSBezierPath(roundedRect: badgeRect, xRadius: badgeDiameter * 0.25, yRadius: badgeDiameter * 0.25)
+        if badge.useDualIconBadge, let dualImg = cachedDualBadge {
+            // Draw official Dual blue "D" badge image with drop shadow
+            ctx?.saveGState()
+            let shadowScale = max(targetSize / 1024.0, 0.1)
+            ctx?.setShadow(
+                offset: CGSize(width: -6.0 * shadowScale, height: 8.0 * shadowScale),
+                blur: 18.0 * shadowScale,
+                color: NSColor.black.withAlphaComponent(0.45).cgColor
+            )
+            dualImg.draw(in: badgeRect,
+                         from: NSRect(origin: .zero, size: dualImg.size),
+                         operation: .sourceOver,
+                         fraction: 1.0)
+            ctx?.restoreGState()
         } else {
-            fillPath = NSBezierPath(ovalIn: badgeRect)
-        }
-        color(fromHex: badge.colorHex).setFill()
-        fillPath.fill()
-        
-        // Draw badge label
-        if !badge.label.isEmpty {
-            let fontSize = badgeDiameter * (badge.label.count > 2 ? 0.40 : 0.55)
-            let font = NSFont.boldSystemFont(ofSize: fontSize)
+            // Vector fallback for badge
+            let cornerRadius = badgeDiameter * 0.28
+            let badgePath = CGPath(roundedRect: NSRect(origin: .zero, size: badgeRect.size),
+                                   cornerWidth: cornerRadius,
+                                   cornerHeight: cornerRadius,
+                                   transform: nil)
+            
+            ctx?.saveGState()
+            ctx?.translateBy(x: badgeRect.origin.x, y: badgeRect.origin.y)
+            ctx?.setShadow(offset: CGSize(width: -2, height: 4), blur: 8, color: NSColor.black.withAlphaComponent(0.40).cgColor)
+            
+            // Subtle white border
+            ctx?.addPath(badgePath)
+            ctx?.setFillColor(color(fromHex: badge.colorHex).cgColor)
+            ctx?.fillPath()
+            
+            ctx?.setStrokeColor(NSColor.white.withAlphaComponent(0.9).cgColor)
+            ctx?.setLineWidth(targetSize > 64 ? 2.5 : 1.5)
+            ctx?.addPath(badgePath)
+            ctx?.strokePath()
+            
+            // Draw label ("D" or custom label)
+            let displayLabel = badge.label.isEmpty ? "D" : badge.label
+            let fontSize = badgeDiameter * (displayLabel.count > 2 ? 0.38 : 0.56)
+            let font = NSFont.systemFont(ofSize: fontSize, weight: .heavy)
             let paragraphStyle = NSMutableParagraphStyle()
             paragraphStyle.alignment = .center
             
@@ -77,15 +114,16 @@ public enum IconBadgeService {
                 .paragraphStyle: paragraphStyle
             ]
             
-            let str = NSAttributedString(string: badge.label, attributes: attributes)
+            let str = NSAttributedString(string: displayLabel, attributes: attributes)
             let strSize = str.size()
             let strRect = NSRect(
-                x: badgeRect.midX - strSize.width / 2,
-                y: badgeRect.midY - strSize.height / 2 + (targetSize > 64 ? 1 : 0),
+                x: (badgeDiameter - strSize.width) / 2,
+                y: (badgeDiameter - strSize.height) / 2,
                 width: strSize.width,
                 height: strSize.height
             )
             str.draw(in: strRect)
+            ctx?.restoreGState()
         }
         
         badgedImage.unlockFocus()
@@ -98,8 +136,23 @@ public enum IconBadgeService {
         badge: BadgeConfig,
         outputIcnsPath: String
     ) async throws {
-        let originalIcon = NSWorkspace.shared.icon(forFile: originalAppPath)
         let fm = FileManager.default
+        
+        // Find best source icon: direct .icns from bundle resources if available
+        var baseIcon: NSImage? = nil
+        let infoPlistPath = "\(originalAppPath)/Contents/Info.plist"
+        if let data = fm.contents(atPath: infoPlistPath),
+           let plist = try? PropertyListSerialization.propertyList(from: data, options: [], format: nil) as? [String: Any],
+           let iconFile = plist["CFBundleIconFile"] as? String {
+            let finalIconName = iconFile.hasSuffix(".icns") ? iconFile : "\(iconFile).icns"
+            let directIcnsPath = "\(originalAppPath)/Contents/Resources/\(finalIconName)"
+            if fm.fileExists(atPath: directIcnsPath) {
+                baseIcon = NSImage(contentsOfFile: directIcnsPath)
+            }
+        }
+        let originalIcon = baseIcon ?? NSWorkspace.shared.icon(forFile: originalAppPath)
+        originalIcon.size = NSSize(width: 1024, height: 1024)
+        
         let tempDir = "\(NSTemporaryDirectory())DualMac_icon_\(UUID().uuidString).iconset"
         
         try fm.createDirectory(atPath: tempDir, withIntermediateDirectories: true)

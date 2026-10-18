@@ -73,6 +73,10 @@ if [ -f "Sources/DualMac/Resources/AppIcon.icns" ]; then
     cp "Sources/DualMac/Resources/AppIcon.icns" "$RESOURCES_DIR/AppIcon.icns"
 fi
 
+if [ -f "Sources/DualMac/Resources/DualBadge.png" ]; then
+    cp "Sources/DualMac/Resources/DualBadge.png" "$RESOURCES_DIR/DualBadge.png"
+fi
+
 echo "==> Signing bundle (ad-hoc)..."
 xattr -cr "$APP_DIR" 2>/dev/null || true
 codesign --force --deep --sign - "$APP_DIR"

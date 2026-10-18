@@ -5,11 +5,12 @@ public struct CreateProfileSheet: View {
     public let onCreated: (DualProfile) -> Void
     
     @Environment(\.dismiss) private var dismiss
-    @State private var profileName: String = "Secondary"
+    @State private var profileName: String = "Dual"
     @State private var selectedMethod: CloningMethod
-    @State private var badgeText: String = "2"
-    @State private var selectedColorHex: String = "#FF9500" // Default Orange
-    @State private var selectedShape: String = "circle"
+    @State private var useOfficialBadge: Bool = true
+    @State private var badgeText: String = "D"
+    @State private var selectedColorHex: String = "#2563EB" // Dual Royal Blue
+    @State private var selectedShape: String = "roundedRectangle"
     @State private var isCreating: Bool = false
     @State private var errorMessage: String? = nil
     
@@ -24,7 +25,8 @@ public struct CreateProfileSheet: View {
             label: badgeText,
             colorHex: selectedColorHex,
             shape: selectedShape,
-            position: "bottomRight"
+            position: "bottomRight",
+            useDualIconBadge: useOfficialBadge
         )
     }
     
@@ -98,47 +100,61 @@ public struct CreateProfileSheet: View {
                             .font(.subheadline)
                             .fontWeight(.semibold)
                         
-                        HStack(spacing: 16) {
-                            VStack(alignment: .leading) {
-                                Text("Badge Label / Text")
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
-                                TextField("2", text: $badgeText)
-                                    .textFieldStyle(.roundedBorder)
-                                    .frame(width: 80)
-                            }
-                            
-                            VStack(alignment: .leading) {
-                                Text("Badge Shape")
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
-                                Picker("", selection: $selectedShape) {
-                                    Text("Circle").tag("circle")
-                                    Text("Rounded").tag("roundedRectangle")
-                                }
-                                .pickerStyle(.segmented)
-                                .frame(width: 160)
-                            }
-                        }
+                        Toggle("Use Official Blue 'D' Badge", isOn: $useOfficialBadge)
+                            .toggleStyle(.checkbox)
                         
-                        VStack(alignment: .leading, spacing: 6) {
-                            Text("Badge Tint Color")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
+                        if useOfficialBadge {
+                            HStack(spacing: 8) {
+                                Image(systemName: "checkmark.seal.fill")
+                                    .foregroundColor(.blue)
+                                Text("Dual clone icon displays the royal blue 'D' squircle badge. The original app icon remains untouched.")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                            }
+                            .padding(.vertical, 4)
+                        } else {
+                            HStack(spacing: 16) {
+                                VStack(alignment: .leading) {
+                                    Text("Badge Label / Text")
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
+                                    TextField("D", text: $badgeText)
+                                        .textFieldStyle(.roundedBorder)
+                                        .frame(width: 80)
+                                }
+                                
+                                VStack(alignment: .leading) {
+                                    Text("Badge Shape")
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
+                                    Picker("", selection: $selectedShape) {
+                                        Text("Circle").tag("circle")
+                                        Text("Rounded").tag("roundedRectangle")
+                                    }
+                                    .pickerStyle(.segmented)
+                                    .frame(width: 160)
+                                }
+                            }
                             
-                            HStack(spacing: 10) {
-                                ForEach(BadgeConfig.presetColors, id: \.self) { colorHex in
-                                    Circle()
-                                        .fill(Color(nsColor: IconBadgeService.color(fromHex: colorHex)))
-                                        .frame(width: 24, height: 24)
-                                        .overlay(
-                                            Circle()
-                                                .stroke(Color.white, lineWidth: selectedColorHex == colorHex ? 2.5 : 0)
-                                        )
-                                        .shadow(radius: selectedColorHex == colorHex ? 2 : 0)
-                                        .onTapGesture {
-                                            selectedColorHex = colorHex
-                                        }
+                            VStack(alignment: .leading, spacing: 6) {
+                                Text("Badge Tint Color")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                                
+                                HStack(spacing: 10) {
+                                    ForEach(BadgeConfig.presetColors, id: \.self) { colorHex in
+                                        Circle()
+                                            .fill(Color(nsColor: IconBadgeService.color(fromHex: colorHex)))
+                                            .frame(width: 24, height: 24)
+                                            .overlay(
+                                                Circle()
+                                                    .stroke(Color.white, lineWidth: selectedColorHex == colorHex ? 2.5 : 0)
+                                            )
+                                            .shadow(radius: selectedColorHex == colorHex ? 2 : 0)
+                                            .onTapGesture {
+                                                selectedColorHex = colorHex
+                                            }
+                                    }
                                 }
                             }
                         }

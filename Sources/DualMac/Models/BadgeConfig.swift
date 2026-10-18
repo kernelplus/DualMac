@@ -5,21 +5,38 @@ public struct BadgeConfig: Codable, Hashable, Sendable {
     public var colorHex: String
     public var shape: String // "circle" or "roundedRectangle"
     public var position: String // "bottomRight" or "topRight"
+    public var useDualIconBadge: Bool
+    
+    enum CodingKeys: String, CodingKey {
+        case label, colorHex, shape, position, useDualIconBadge
+    }
     
     public init(
-        label: String = "2",
-        colorHex: String = "#FF9500", // Apple System Orange default
-        shape: String = "circle",
-        position: String = "bottomRight"
+        label: String = "D",
+        colorHex: String = "#2563EB", // Vibrant Royal Blue matching Dual badge
+        shape: String = "roundedRectangle",
+        position: String = "bottomRight",
+        useDualIconBadge: Bool = true
     ) {
         self.label = label
         self.colorHex = colorHex
         self.shape = shape
         self.position = position
+        self.useDualIconBadge = useDualIconBadge
+    }
+    
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.label = try container.decodeIfPresent(String.self, forKey: .label) ?? "D"
+        self.colorHex = try container.decodeIfPresent(String.self, forKey: .colorHex) ?? "#2563EB"
+        self.shape = try container.decodeIfPresent(String.self, forKey: .shape) ?? "roundedRectangle"
+        self.position = try container.decodeIfPresent(String.self, forKey: .position) ?? "bottomRight"
+        self.useDualIconBadge = try container.decodeIfPresent(Bool.self, forKey: .useDualIconBadge) ?? true
     }
     
     public static let presetColors: [String] = [
-        "#007AFF", // Blue
+        "#2563EB", // Dual Blue (Official)
+        "#007AFF", // System Blue
         "#FF9500", // Orange
         "#AF52DE", // Purple
         "#34C759", // Green

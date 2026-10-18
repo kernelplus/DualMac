@@ -100,6 +100,13 @@ public enum CloningEngine {
                 outputIcnsPath: icnsPath
             )
             
+            let badgedPreview = IconBadgeService.generateBadgedImage(
+                baseImage: NSWorkspace.shared.icon(forFile: app.path),
+                badge: badge,
+                targetSize: 512
+            )
+            _ = NSWorkspace.shared.setIcon(badgedPreview, forFile: launcherAppPath, options: [])
+            
             // 3. Compile Launcher Binary
             let cSource = """
             #include <stdlib.h>
@@ -130,6 +137,7 @@ public enum CloningEngine {
             if fm.fileExists(atPath: lsregister) {
                 _ = try? await CommandRunner.shared.run(lsregister, arguments: ["-f", launcherAppPath])
             }
+            _ = try? await CommandRunner.shared.run("/usr/bin/touch", arguments: [launcherAppPath])
             
             cloneBundlePath = launcherAppPath
             
@@ -170,6 +178,13 @@ public enum CloningEngine {
                 outputIcnsPath: targetIcns
             )
             
+            let badgedClonePreview = IconBadgeService.generateBadgedImage(
+                baseImage: NSWorkspace.shared.icon(forFile: app.path),
+                badge: badge,
+                targetSize: 512
+            )
+            _ = NSWorkspace.shared.setIcon(badgedClonePreview, forFile: targetBundlePath, options: [])
+            
             // Clear quarantine attribute
             try await CommandRunner.shared.run("/usr/bin/xattr", arguments: ["-cr", targetBundlePath])
             
@@ -181,6 +196,7 @@ public enum CloningEngine {
             if fm.fileExists(atPath: lsregister) {
                 _ = try? await CommandRunner.shared.run(lsregister, arguments: ["-f", targetBundlePath])
             }
+            _ = try? await CommandRunner.shared.run("/usr/bin/touch", arguments: [targetBundlePath])
             
             cloneBundlePath = targetBundlePath
             

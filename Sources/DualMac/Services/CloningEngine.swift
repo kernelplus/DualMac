@@ -174,11 +174,23 @@ public enum CloningEngine {
                 try await CommandRunner.shared.run("/usr/bin/plutil", arguments: ["-replace", "CFBundleName", "-string", newDisplayName, infoPlist])
             }
             
+            // Remove CFBundleIconName and Assets.car if present:
+            // On macOS 11+, apps with CFBundleIconName and Assets.car ignore CFBundleIconFile (.icns)
+            // and load the unbadged icon from the compiled catalog. Removing CFBundleIconName and Assets.car
+            // ensures macOS loads the newly badged .icns file.
+            _ = try? await CommandRunner.shared.run("/usr/bin/plutil", arguments: ["-remove", "CFBundleIconName", infoPlist])
+            let assetsCar = "\(targetBundlePath)/Contents/Resources/Assets.car"
+            if fm.fileExists(atPath: assetsCar) {
+                try? fm.removeItem(atPath: assetsCar)
+            }
+            
             // Badge app icon
             let analysis = AppAnalyzerService.analyze(appPath: app.path)
             let iconFileName = analysis.iconFileName ?? "AppIcon.icns"
             let finalIconName = iconFileName.hasSuffix(".icns") ? iconFileName : "\(iconFileName).icns"
             let targetIcns = "\(targetBundlePath)/Contents/Resources/\(finalIconName)"
+            
+            _ = try? await CommandRunner.shared.run("/usr/bin/plutil", arguments: ["-replace", "CFBundleIconFile", "-string", finalIconName, infoPlist])
             
             try await IconBadgeService.createBadgedIcns(
                 originalAppPath: app.path,
